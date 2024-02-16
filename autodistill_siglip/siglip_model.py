@@ -12,8 +12,6 @@ from transformers import pipeline
 HOME = os.path.expanduser("~")
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# inference
-
 @dataclass
 class SigLIP(DetectionBaseModel):
     ontology: CaptionOntology
@@ -24,14 +22,12 @@ class SigLIP(DetectionBaseModel):
 
     def predict(self, input: str, confidence: int = 0.5) -> sv.Classifications:
         prompts = self.ontology.prompts()
-        outputs = self.model(load_image(input), candidate_labels=prompts)
+        outputs = self.model(load_image(input, return_format="PIL"), candidate_labels=prompts)
         outputs = [{"score": round(output["score"], 4), "label": prompts.index(output["label"]) } for output in outputs]
 
         results = sv.Classifications(
-            class_id=np.array([output["label"] for output in outputs]),
-            confidence=np.array([output["score"] for output in outputs]),
+            class_id=np.array([output["label"] for output in outputs if output["score"] > confidence]),
+            confidence=np.array([output["score"] for output in outputs if output["score"] > confidence])
         )
-
-        results = results[results.confidence > confidence]
 
         return results
